@@ -19,6 +19,8 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "spi.h"
+#include "tim.h"
 #include "usart.h"
 #include "gpio.h"
 
@@ -87,16 +89,30 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART2_UART_Init();
+  MX_SPI1_Init();
+  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  uint16_t send_data = 0x8000; //MSB set to 1, others set to 0 so we address channel 0, which the pot is connected to
+  uint16_t* read_adc=0;
+  uint32_t timer_cutoff=3200;
   while (1)
   {
-    /* USER CODE END WHILE */
 
+    /* USER CODE END WHILE */
+	  // STM32MXCUBE generated reference to the SPI pin is in "spi.c" as "SPI_HandleTypeDef hspi1;"
+	  //send 4 bits to establish communication, wait 1 bit, then receive 10 data bits.
+	  HAL_SPI_TransmitReceive(&hspi1, send_data, read_adc, 1, 5);
+	  //received data should be last 10 bits, of a number from 0 to 1023
+	  *read_adc = *read_adc & 0x03FF; //clearing the first 6 bits of data and leaving the last 10
+	  //0b0000 0011 1111 1111 = 0x03FF = 1023
+	  //10% of 64000 is 6400, 5% is 3200
+	  timer_cutoff = (((int)read_adc / 1023) * 3200) + 3200;
+	  TIM1->CCR1 = timer_cutoff; //setting the PWM
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */

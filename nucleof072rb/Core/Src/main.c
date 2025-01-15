@@ -97,23 +97,39 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  uint16_t send_data = 0x8000; //MSB set to 1, others set to 0 so we address channel 0, which the pot is connected to
-  uint16_t* read_adc=0;
+  uint8_t send_data[3] = {1,8,0}; //1 signal bit, 1 differential bit set to 1, others set to 0 so we address channel 0, which the pot is connected to
+  uint16_t* read_adc[3]={0,0,0};
   uint32_t timer_cutoff=3200;
+
+  //CONSTANTS
+  const uint16_t MIN_DUTY_CYCLE = 3200;
+  const uint16_t DUTY_CYCLE_MAX_SCALE = 3200;
+  const uint16_t MAX_ADC_READING = 1023;
+
+  //start PWM
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
   while (1)
   {
 
     /* USER CODE END WHILE */
 	  // STM32MXCUBE generated reference to the SPI pin is in "spi.c" as "SPI_HandleTypeDef hspi1;"
+	  // Set Chip Select
+	  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET);
 	  //send 4 bits to establish communication, wait 1 bit, then receive 10 data bits.
-	  HAL_SPI_TransmitReceive(&hspi1, send_data, read_adc, 1, 5);
+	  HAL_SPI_TransmitReceive(&hspi1, send_data, read_adc, 3, HAL_MAX_DELAY);
 	  //received data should be last 10 bits, of a number from 0 to 1023
-	  *read_adc = *read_adc & 0x03FF; //clearing the first 6 bits of data and leaving the last 10
+	  //*read_adc = *read_adc & 0x03FF; //clearing the first 6 bits of data and leaving the last 10
+
+	  // Reset Chip Select
+	  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_RESET);
+
 	  //0b0000 0011 1111 1111 = 0x03FF = 1023
 	  //10% of 64000 is 6400, 5% is 3200
-	  timer_cutoff = (((int)read_adc / 1023) * 3200) + 3200;
-	  TIM1->CCR1 = timer_cutoff; //setting the PWM
+	  timer_cutoff = (((int)read_adc / MAX_ADC_READING) * DUTY_CYCLE_MAX_SCALE) + MIN_DUTY_CYCLE;
+	  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, timer_cutoff); //setting the PWM using the HAL macro
+	  //TIM1->CCR1 = timer_cutoff; //setting the PWM
     /* USER CODE BEGIN 3 */
+	  HAL_Delay(10); //10ms delay between while loop executions
   }
   /* USER CODE END 3 */
 }

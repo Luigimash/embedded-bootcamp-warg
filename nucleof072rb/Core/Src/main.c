@@ -98,8 +98,8 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   uint8_t send_data[3] = {1,8,0}; //1 signal bit, 1 differential bit set to 1, others set to 0 so we address channel 0, which the pot is connected to
-  uint16_t* read_adc[3]={0,0,0};
-  uint32_t timer_cutoff=3200;
+  uint8_t* read_adc[3]={0,0,0};
+  uint8_t timer_cutoff=3200;
 
   //CONSTANTS
   const uint16_t MIN_DUTY_CYCLE = 3200;
@@ -108,6 +108,9 @@ int main(void)
 
   //start PWM
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_RESET);
+  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, timer_cutoff); //initializing PWM to a known value
   while (1)
   {
 
@@ -125,7 +128,7 @@ int main(void)
 
 	  //0b0000 0011 1111 1111 = 0x03FF = 1023
 	  //10% of 64000 is 6400, 5% is 3200
-	  timer_cutoff = (((int)read_adc / MAX_ADC_READING) * DUTY_CYCLE_MAX_SCALE) + MIN_DUTY_CYCLE;
+	  timer_cutoff = ((read_adc[2] / MAX_ADC_READING) * DUTY_CYCLE_MAX_SCALE) + MIN_DUTY_CYCLE;
 	  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, timer_cutoff); //setting the PWM using the HAL macro
 	  //TIM1->CCR1 = timer_cutoff; //setting the PWM
     /* USER CODE BEGIN 3 */
